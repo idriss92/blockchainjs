@@ -1,6 +1,11 @@
-const SHA256 = require('crypto-js/sha256');
+const SHA256 = require("crypto-js/sha256");
 const uuidv1 = require('uuid/V1');
-const difficulty = 1;
+
+class Node{
+    constructor(address){
+        this.node = address;
+    }
+}
 
 class Response {
     constructor(message, index, transactions, proof, previousHash){
@@ -11,6 +16,7 @@ class Response {
         this.previousHash = previousHash
     }
 }
+
 class Transaction{
     constructor(amount, recipient, sender){
         this.amount = amount;
@@ -18,136 +24,102 @@ class Transaction{
         this.sender = sender;
     }
 }
-
-class Block{
-    constructor(index, data, previousHash = '' , transactions, proof){
-        this.index = index;
-        this.timestamp = Date.now();
-        // this.data = data;
-        this.previousHash = previousHash;
-        this.hash = this.calculateHash();
-        this.proof = proof;
-        this.transactions = transactions
-    }
-
-    calculateHash(){
-        return SHA256(this.index + this.previousHash + this.timestamp + JSON.stringify(this.data) + this.proof).toString();
-    }
+class Block {
+  constructor(index, previousHash = '', transactions = null) {
+    this.index = index;
+    this.transactions = transactions;
+    this.previousHash = previousHash;
+    this.timestamp = Date.now();
+    // this.data = data;
+    this.hash = '';
+    this.proof = 0;
+  }
 
 }
 
-class Node{
-    constructor(address){
-        this.node = address;
-    }
-}
 
 class Blockchain{
-    // chain = [];
-    // // nodes = [];
-    // currentTransactions = []
-    constructor(){
-        this.chain = [this.createGenesisBlock()];
-        // difficulty = 2;
-        this.currentTransactions = [];
-        this.nodeId = uuidv1();
-        // this.nodes = [];
-        // this.chain = [];
-        // this.addBlock(100, "1");
+    constructor() {
+        this.chain =[];
+        this.nodes = [];
+        this.difficulty = 5;
+        this.createNewBlock(100, "1");
+        this.nodeId
     }
 
-    createGenesisBlock(){
-        return new Block(0, "Genesis block", "0")
+    getLatestBlock() {
+        return this.chain[this.chain.length - 1];
     }
 
-    getLatestBlock(){
-        return this.chain.slice(-1)[0];
-    }
-
-    addBlock(newBlock){
-        //let block = new Block(this.chain.length,"data",previousHash, this.currentTransactions, proof) 
-        if(previousHash == null){
-            block.previousHash = this.getLatestBlock().previousHash;
+    createNewBlock(proof, previousHash = null){
+        let block = new Block(this.chain.length, "", previousHash,"");
+        if(previousHash === null){
+            block.previousHash = this.getLatestBlock().hash;
         }
         else{
             block.previousHash = previousHash;
         }
-        block.hash = block.calculateHash();
-        this.currentTransactions = [];
+        block.hash = this.calculateHash(block);
         this.chain.push(block);
         return block;
     }
 
-    isChainValid(){
-        for(let i =1; i < this.chain.length; i++){
-            const currentBlock = this.chain[1];
-            const previousBlock = this.chain[i-1];
-            if(currentBlock.hash !== currentBlock.calculateHash()){
+    isChainValid() {        
+        for (let i = 1; i < this.chain.length; i++){
+            const currentBlock = this.chain[i];
+            const previousBlock = this.chain[i - 1];
+
+            if (currentBlock.hash !== currentBlock.calculateHash()) {
                 return false;
             }
-            if(currentBlock.previousHash !== previousBlock.hash){
+
+            if (currentBlock.previousHash !== previousBlock.hash) {
                 return false;
             }
-            return true
         }
-    }
 
-    registerNode(adress){
-        this.nodes.add(new Node(adress));
+        return true;
     }
-
-    createProofOfWork(newBlock){
-        while(newBlock.hash.substring(0, difficulty) !== Array(difficulty+1).join("0")){
-            console.log('createproofofwork'+newBlock.proof)
-            newBlock.proof++;
+    resolveConflicts(){
+        let newChain = [];
+        this.nodes.forEach(
+            node =>{
+                
+            }
+        )
+        if(newChain != null){
+            this.chain = newChain;
+            return true;
         }
-        return newBlock.proof;
+        return false;
     }
 
-    // validProof(lastProof, proof, previousHash){
-    //     return previousHash.substring(0, difficulty) !== Array(difficulty+1).join("0");
-    // }
-
-    //server calls mine
-    
-
-    // server calls
-    registerNodes(addresses){
-        console.log('hello')
-        addresses.forEach(adress => {
-            let url = `http://${address}`;
-            registerNode(url);
-        });
-        console.log(`${this.nodes.length} new nodes have been added`);
-    }
-
-    // server calls
-    createTransaction(sender, recipient, amount){
-        let transaction = new Transaction(amount, recipient, sender);
-        this.currentTransactions.push(transaction);
-        return transaction;
-    }
-
-    // server calls
     mine(){
-        let proof = this.createProofOfWork(/*this.getLatestBlock().proof,*/ this.getLatestBlock().hash);
-        this.createTransaction("0", this.nodeId, 1);
-        let block = this.addBlock(proof);
-        return new Response("New block forged", block. index, block. transactions, block.proof,block.previousHash);
+        console.log('mining')
+        let proof = this.createPow(this.getLatestBlock().proof, this.getLatestBlock().previousHash);
+        // create transaction
+        let block = this.createNewBlock(proof);
+        return JSON.stringify(new Response("New block forged", block.index, block.transactions, block.proof, block.previousHash));
+    }
+
+    createPow(lastProof, previousHash){
+        let proof = 0;
+        while(!this.isValidProof(lastProof,proof))
+            proof++;
+        return proof;
+    }
+
+    isValidProof(lastProof, proof, previousHash){
+        let toGuess = `${lastProof}${proof}${previousHash}`;
+        let result = SHA256(toGuess);
+        
+        return result.toString().startsWith(Array(this.difficulty +1).join("0"));
+    }
+
+    calculateHash(block){
+        return SHA256(block).toString();
     }
 }
 
 let savjeeCoin = new Blockchain();
-for(let i = 0; i<1; i++){
 console.log(savjeeCoin.mine());
-}
-// addBlock(proof, previousHash = null)
-
-// console.log("mining block 1...");
-// savjeeCoin.addBlock(new Block(1, { amount: 4 }, savjeeCoin.getLatestBlock().previousHash, "", 1));
-
-// console.log("mining block 2...");
-// savjeeCoin.addBlock(new Block(2, { amount: 8 }, savjeeCoin.getLatestBlock().previousHash, ""));
-
-console.log(JSON.stringify(savjeeCoin,null,4));
-
